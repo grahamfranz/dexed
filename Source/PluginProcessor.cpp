@@ -50,14 +50,13 @@ static inline int32_t d7DacQuantize(int32_t value) {
     if (shift < 0) shift = 0;
 
     uint32_t rounding = (shift > 0) ? (1u << (shift - 1)) : 0;
-
     uint32_t quantized = (absval + rounding) >> shift;
 
     if (quantized > 0xFFFu)
         quantized = 0xFFFu;
 
     absval = quantized << shift;
-    
+
     return negative ? -int32_t(absval) : int32_t(absval);
 }
 
@@ -290,9 +289,9 @@ void DexedAudioProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& mi
                     
                     for (int j=0; j < N; ++j) {
                         int32_t val = audiobuf.get()[j];
-                        
-                        val = val >> 4;
                         val = d7DacQuantize(val);
+                        val = val >> 4;
+                        
                         int clip_val = val < -(1 << 24) ? 0x8000 : val >= (1 << 24) ? 0x7fff : val >> 9;
                         float f = ((float) clip_val) / (float) 0x8000;
                         if( f > 1 ) f = 1;
