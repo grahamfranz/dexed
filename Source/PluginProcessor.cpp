@@ -305,9 +305,9 @@ void DexedAudioProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& mi
                     
                     for (int j=0; j < N; ++j) {
                         int32_t val = audiobuf.get()[j];
-                        
-                        val = val >> 4;
                         val = d7DacQuantize(val);
+                        val = val >> 4;
+                        
                         int clip_val = val < -(1 << 24) ? 0x8000 : val >= (1 << 24) ? 0x7fff : val >> 9;
                         float f = ((float) clip_val) / (float) 0x8000;
                         if( f > 1 ) f = 1;
