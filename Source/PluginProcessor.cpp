@@ -35,6 +35,32 @@
 #include "msfa/aligned_buf.h"
 #include "msfa/fm_op_kernel.h"
 
+static inline int32_t d7DacQuantize(int32_t value) {
+    if (value == 0) return 0;
+
+    bool negative = value < 0;
+    uint32_t absval = negative ? uint32_t(-value) : uint32_t(value);
+
+    int bits = 31 - __builtin_clz(absval);
+
+    int exponent = bits;
+    if (exponent > 15) exponent = 15;
+
+    int shift = exponent - 11;
+    if (shift < 0) shift = 0;
+
+    uint32_t rounding = (shift > 0) ? (1u << (shift - 1)) : 0;
+
+    uint32_t quantized = (absval + rounding) >> shift;
+
+    if (quantized > 0xFFFu)
+        quantized = 0xFFFu;
+
+    absval = quantized << shift;
+    
+    return negative ? -int32_t(absval) : int32_t(absval);
+}
+
 #if JUCE_MSVC
     #pragma comment (lib, "kernel32.lib")
     #pragma comment (lib, "user32.lib")
@@ -266,6 +292,7 @@ void DexedAudioProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& mi
                         int32_t val = audiobuf.get()[j];
                         
                         val = val >> 4;
+                        val = d7DacQuantize(val);
                         int clip_val = val < -(1 << 24) ? 0x8000 : val >= (1 << 24) ? 0x7fff : val >> 9;
                         float f = ((float) clip_val) / (float) 0x8000;
                         if( f > 1 ) f = 1;
