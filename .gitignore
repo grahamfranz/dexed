@@ -20,3 +20,4 @@ build*/
 .idea
 cmake-build-*
 ignore/
+dx7_dac_quantize_test

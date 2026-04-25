@@ -35,26 +35,42 @@
 #include "msfa/aligned_buf.h"
 #include "msfa/fm_op_kernel.h"
 
+// Simulate Yamaha DX7 DAC quantization
+// Hardware: 12-bit DAC with external 3-bit analog scaler (divide by 1,2,4,8)
+// The DX7 firmware chooses the exponent (SF pins) based on signal magnitude
+// to keep the output in the usable 12-bit range.
+// Digital simulation: quantize to 12-bit precision with adaptive exponent shifting.
+// Reference: https://electronics.stackexchange.com/questions/512992
 static inline int32_t d7DacQuantize(int32_t value) {
     if (value == 0) return 0;
 
     bool negative = value < 0;
     uint32_t absval = negative ? uint32_t(-value) : uint32_t(value);
 
+    // Find the bit position (magnitude) of the value
     int bits = 31 - __builtin_clz(absval);
 
+    // Calculate exponent: how many positions to shift right to fit in 12 bits
+    // The DX7 hardware uses SF pins (0-3) to select the shift amount
     int exponent = bits;
-    if (exponent > 15) exponent = 15;
+    if (exponent > 15) exponent = 15;  // Limit to prevent overflow
 
+    // Shift amount: right-shift to fit value in 12-bit range (0xFFF = 4095)
     int shift = exponent - 11;
     if (shift < 0) shift = 0;
 
+    // Rounding before quantization (round to nearest)
     uint32_t rounding = (shift > 0) ? (1u << (shift - 1)) : 0;
+
+    // Quantize to 12-bit mantissa by right-shifting
     uint32_t quantized = (absval + rounding) >> shift;
 
+    // Clamp to 12-bit maximum (0xFFF = 4095)
     if (quantized > 0xFFFu)
         quantized = 0xFFFu;
 
+    // Reconstruct the value by shifting back
+    // This preserves the magnitude while keeping quantization artifacts
     absval = quantized << shift;
 
     return negative ? -int32_t(absval) : int32_t(absval);
